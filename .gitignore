@@ -1,0 +1,84 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+app.log
+
+# Local upload/data directory (templates, screenshots, etc.)
+data/
+
+# Output directories (generated resumes and job descriptions)
+# Add your OUTPUT_DIR path here if it's in the project directory
+output/
+backend/dist/
+build/
+# Note: backend/public/ contains the built frontend and should be committed for deployment
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Electron build outputs
+out/
+dist-electron/
+*.app
+*.exe
+*.dmg
+*.pkg
+*.deb
+*.rpm
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Windows specific
+*.lnk
+
+# macOS specific
+.AppleDouble
+.LSOverride
+
+# Linux specific
+*~
+
+# Optional: Keep template.docx but ignore generated files
+# Uncomment if you want to ignore generated resumes
+# *.docx
+# !template.docx
+
+*.pdf
+*.docx
+*.doc
