@@ -59,7 +59,7 @@ const extractCompanyInfoFromTemplate = async (templatePath) => {
             companies: z.array(z.object({
                 name: z.string(),
                 period: z.string()
-            })).min(2).max(4).nullable().optional()
+            })).min(2).max(5).nullable().optional()
         });
 
         // Call OpenAI to extract company info
@@ -84,7 +84,7 @@ const extractCompanyInfoFromTemplate = async (templatePath) => {
                         Look for:
                         - Company names and employment periods (extract as an array of objects with 'name' and 'period' fields)
                         - Companies should be ordered from most recent to oldest
-                        - Extract 2-4 companies maximum
+                        - Extract 2-5 companies maximum
 
                         Format periods as "MM/YYYY - MM/YYYY" or "MM/YYYY - Present" if applicable.
                         Return companies as an array: [{name: "Company1", period: "01/2022 - Present"}, {name: "Company2", period: "06/2019 - 12/2021"}, ...]
@@ -96,13 +96,13 @@ const extractCompanyInfoFromTemplate = async (templatePath) => {
 
         const extractedInfo = JSON.parse(completion.choices[0].message.content);
 
-        // Ensure companies array exists and is valid (2-4 companies)
+        // Ensure companies array exists and is valid (2-5 companies)
         if (!extractedInfo.companies || !Array.isArray(extractedInfo.companies)) {
             extractedInfo.companies = [];
         }
 
-        // Limit to 2-4 companies
-        extractedInfo.companies = extractedInfo.companies.slice(0, 4);
+        // Limit to 2-5 companies
+        extractedInfo.companies = extractedInfo.companies.slice(0, 5);
         if (extractedInfo.companies.length < 2) {
             // If less than 2 companies, return null to use defaults
             return null;

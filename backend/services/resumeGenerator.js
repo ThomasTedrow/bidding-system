@@ -96,14 +96,15 @@ const DEFAULT_COMPANY_INFO = {
 };
 
 // Job title field names (standardized: firstJob is always most recent)
-const JOB_FIELD_NAMES = ['firstJob', 'secondJob', 'thirdJob', 'fourthJob'];
+const JOB_FIELD_NAMES = ['firstJob', 'secondJob', 'thirdJob', 'fourthJob', 'fifthJob'];
 
 // Bullet count constraints per position
 const EXPERIENCE_BULLET_CONSTRAINTS = {
     'firstJob': { min: 5, max: 6 },   // 5-6 bullets, max 6
     'secondJob': { min: 5, max: 6 },   // 5-6 bullets, max 6
-    'thirdJob': { min: 5, max: 5 }, // 5 bullets, max 5
-    'fourthJob': { min: 5, max: 5 }  // 5 bullets, max 5
+    'thirdJob': { min: 5, max: 5 },    // 5 bullets, max 5
+    'fourthJob': { min: 5, max: 5 },   // 5 bullets, max 5
+    'fifthJob': { min: 5, max: 5 }     // 5 bullets, max 5
 };
 
 // Seniority levels per bullet field based on company count
@@ -111,19 +112,26 @@ const EXPERIENCE_SENIORITY_LEVELS = {
     'firstJob': {
         2: 'Senior',
         3: 'Senior',
-        4: 'Senior'
+        4: 'Senior',
+        5: 'Senior'
     },
     'secondJob': {
         2: 'Entry-level',
         3: 'Senior',
-        4: 'Senior'
+        4: 'Senior',
+        5: 'Senior'
     },
     'thirdJob': {
         3: 'Entry-level',
-        4: 'Entry-level'
+        4: 'Entry-level',
+        5: 'Entry-level'
     },
     'fourthJob': {
-        4: 'Entry-level'
+        4: 'Entry-level',
+        5: 'Entry-level'
+    },
+    'fifthJob': {
+        5: 'Entry-level'
     }
 };
 
@@ -166,7 +174,7 @@ function getSeniorityLevel(fieldName, numCompanies) {
 async function runResumeCompletion(jobDescription, candidateInfo, numCompanies, generatedResumeExtracted) {
     // Build experience prompts - one shared prompt template for all positions
     const experiencePrompts = [];
-    const positionLabels = ['first', 'second', 'third', 'fourth'];
+    const positionLabels = ['first', 'second', 'third', 'fourth', 'fifth'];
 
     for (let i = 0; i < numCompanies && candidateInfo.companies[i]; i++) {
         const fieldName = JOB_FIELD_NAMES[i];
@@ -189,7 +197,7 @@ async function runResumeCompletion(jobDescription, candidateInfo, numCompanies, 
     const profileLines = [
         `Name: ${candidateInfo.name}`,
         ...candidateInfo.companies.map((c, i) => {
-            const labels = ['First', 'Second', 'Third', 'Fourth'];
+            const labels = ['First', 'Second', 'Third', 'Fourth', 'Fifth'];
             return `${labels[i]} Company: ${c.name} (${c.period})`;
         })
     ].join('\n');
@@ -228,7 +236,7 @@ async function runResumeCompletion(jobDescription, candidateInfo, numCompanies, 
                         • First/second position: weave in key JD skills and technologies across bullets, plus extra relevant skills (frameworks, infra, testing, observability). Each bullet = concrete project work (what was built, for whom, outcome)—not a rephrased JD requirement.
                         • Senior positions: include leadership (mentoring, technical direction, cross-team alignment, ownership of scope).
                         • Per position: include at least one bullet that demonstrates a soft skill or behavioral trait mentioned in the JD (e.g. collaboration, communication, mentoring, ownership, cross-functional work)—weave it into concrete project context, not as a standalone claim.
-                        • Measurable Results: Each position must have 1–2 bullets with specific achievements or impact metrics. CRITICAL—do not concentrate metrics in the most recent role: the most recent position (current job) must have at most 1 bullet with measurable results; older positions (second, third, fourth job) must each have at least 1 and at most 2. Put more measurable results in older roles, not in the latest. Use concrete numbers (response times, throughput, scale, efficiency gains, cost savings, error reduction, test coverage, etc.); prefer absolute units over percentages (e.g. "reduced from 500ms to 50ms" not "by 90%"). Keep metrics realistic and contextually appropriate for the project and time period.
+                        • Measurable Results: Each position must have 1–2 bullets with specific achievements or impact metrics. CRITICAL—do not concentrate metrics in the most recent role: the most recent position (current job) must have at most 1 bullet with measurable results; older positions (second, third, fourth, fifth job) must each have at least 1 and at most 2. Put more measurable results in older roles, not in the latest. Use concrete numbers (response times, throughput, scale, efficiency gains, cost savings, error reduction, test coverage, etc.); prefer absolute units over percentages (e.g. "reduced from 500ms to 50ms" not "by 90%"). Keep metrics realistic and contextually appropriate for the project and time period.
 
                         Formatting Requirements:
                         • No company names in bullets; write generically ("Led development of..." not "at CompanyX"). No "Tech stack:" or "How:" labels—weave tech into prose.
@@ -314,7 +322,7 @@ async function runResumeCompletion(jobDescription, candidateInfo, numCompanies, 
 
                     2) Bullet Counts
                        • firstJob/secondJob = 5–6 bullets each
-                       • thirdJob/fourthJob = exactly 5 bullets each
+                       • thirdJob/fourthJob/fifthJob = exactly 5 bullets each
                        • Add or trim bullets to match
 
                     3) Experience Bullets Content
@@ -349,7 +357,7 @@ async function runResumeCompletion(jobDescription, candidateInfo, numCompanies, 
                        • No exotic characters in generated text
 
                     10) Measurable Results & Achievements
-                       • Most recent position (firstJob): at most 1 bullet with measurable results. Older positions (secondJob, thirdJob, fourthJob): each at least 1 and at most 2. Do NOT put multiple measurable bullets in the latest job.
+                       • Most recent position (firstJob): at most 1 bullet with measurable results. Older positions (secondJob, thirdJob, fourthJob, fifthJob): each at least 1 and at most 2. Do NOT put multiple measurable bullets in the latest job.
                        • Use concrete metrics (response times, throughput, scale, efficiency gains, cost savings, error reduction, test coverage, etc.); prefer absolute units over percentages
                        • Metrics must be realistic and contextually appropriate for the project and time period
                        • If the most recent position has more than 1 measurable bullet: move or rephrase so it has at most 1; add or keep 1–2 measurable bullets in older positions so each has at least 1
@@ -385,8 +393,8 @@ const generateResume = async (jobDescription, templatePath, profileName = null, 
                 : [...DEFAULT_COMPANY_INFO.companies]
         };
 
-        // Ensure we have at least 2 companies, up to 4
-        const numCompanies = Math.min(Math.max(candidateInfo.companies.length, 2), 4);
+        // Ensure we have at least 2 companies, up to 5
+        const numCompanies = Math.min(Math.max(candidateInfo.companies.length, 2), 5);
         candidateInfo.companies = candidateInfo.companies.slice(0, numCompanies);
 
         // profileName = Name of Template (from DB), used for generated filename only
@@ -400,7 +408,7 @@ const generateResume = async (jobDescription, templatePath, profileName = null, 
             skills: z.array(z.string()),
         };
 
-        // Add job title and bullet fields only for the companies we're generating (2–4)
+        // Add job title and bullet fields only for the companies we're generating (2–5)
         jobFieldNames.forEach(field => {
             schemaFields[`${field}Title`] = z.string();
             schemaFields[`${field}Bullets`] = getExperienceFieldSchema(field);
@@ -508,12 +516,13 @@ const exportResume = async (resume, templatePath) => {
             skills: skillsForTemplate,
         };
 
-        // Template placeholders: {firstJob}, {secondJob}, {thirdJob}, {fourthJob} (1:1 with resume fields)
+        // Template placeholders: {firstJob}…{fifthJob} (1:1 with resume fields)
         const jobFieldMapping = {
             firstJob: 'firstJob',
             secondJob: 'secondJob',
             thirdJob: 'thirdJob',
-            fourthJob: 'fourthJob'
+            fourthJob: 'fourthJob',
+            fifthJob: 'fifthJob'
         };
 
         Object.keys(jobFieldMapping).forEach(templateKey => {
@@ -526,12 +535,13 @@ const exportResume = async (resume, templatePath) => {
             options['title'] = resume.firstJob;
         }
 
-        // Map experience bullets dynamically (matches DOCX placeholders: {bullets1}, {bullets2}, {bullets3}, {bullets4})
+        // Map experience bullets dynamically (matches DOCX placeholders: {bullets1}…{bullets5})
         const experienceFieldMapping = {
             bullets1: 'firstJobBullets',
             bullets2: 'secondJobBullets',
             bullets3: 'thirdJobBullets',
-            bullets4: 'fourthJobBullets'
+            bullets4: 'fourthJobBullets',
+            bullets5: 'fifthJobBullets'
         };
 
         Object.keys(experienceFieldMapping).forEach(templateKey => {
