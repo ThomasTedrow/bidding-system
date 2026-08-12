@@ -10,6 +10,7 @@ import {
   getBidResumeDownloadUrl,
 } from '../services/bidsService';
 import ApplyBidModal from '../components/ApplyBidModal';
+import GenerateResumeModal from '../components/GenerateResumeModal';
 import NoteScreenshotsModal from '../components/NoteScreenshotsModal';
 
 const MAX_SCREENSHOTS = 3;
@@ -46,6 +47,10 @@ const Bids = () => {
   // Apply modal state
   const [applyModalOpen, setApplyModalOpen] = useState(false);
   const [selectedJobForApply, setSelectedJobForApply] = useState(null);
+
+  // Generate resume modal state
+  const [generateModalOpen, setGenerateModalOpen] = useState(false);
+  const [selectedJobForGenerate, setSelectedJobForGenerate] = useState(null);
 
   // Screenshot modal state (for admin)
   const [screenshotModalOpen, setScreenshotModalOpen] = useState(false);
@@ -138,43 +143,64 @@ const Bids = () => {
     }
   };
 
-  const handleGenerateResume = async (job) => {
-    // Prevent starting more than MAX_CONCURRENT_GENERATIONS in parallel
+  const openGenerateModal = (job) => {
+    if (generatingJobs.size >= MAX_CONCURRENT_GENERATIONS && !generatingJobs.has(job.id)) {
+      return;
+    }
+    setSelectedJobForGenerate(job);
+    setActionError(null);
+    setGenerateModalOpen(true);
+  };
+
+  const closeGenerateModal = () => {
+    setGenerateModalOpen(false);
+    setSelectedJobForGenerate(null);
+  };
+
+  const handleGenerateResume = ({ jobDescription }) => {
+    const job = selectedJobForGenerate;
+    if (!job) return;
+
     if (generatingJobs.size >= MAX_CONCURRENT_GENERATIONS && !generatingJobs.has(job.id)) {
       return;
     }
 
-    try {
-      setActionError(null);
-      // Add job ID to generating set
-      setGeneratingJobs(prev => new Set(prev).add(job.id));
+    setActionError(null);
+    setGeneratingJobs(prev => new Set(prev).add(job.id));
+    closeGenerateModal();
 
-      const token = getToken();
-      const data = await generateBidResume(token, {
-        jobId: job.id,
-        profileId: job.profileId,
-      });
-      if (data.success && data.aiResume) {
-        // Update only the specific job in the state
-        setJobs(prevJobs =>
-          prevJobs.map(j =>
-            j.id === job.id && j.profileId === job.profileId
-              ? { ...j, generatedResume: data.aiResume.generatedResume }
-              : j
-          )
-        );
+    (async () => {
+      try {
+        const token = getToken();
+        const data = await generateBidResume(token, {
+          jobId: job.id,
+          profileId: job.profileId,
+          jobDescription,
+        });
+        if (data.success && data.aiResume) {
+          setJobs(prevJobs =>
+            prevJobs.map(j =>
+              j.id === job.id && j.profileId === job.profileId
+                ? {
+                  ...j,
+                  generatedResume: data.aiResume.generatedResume,
+                  savedJobDescription: data.aiResume.jobDescription || jobDescription,
+                }
+                : j
+            )
+          );
+        }
+      } catch (err) {
+        console.error('Error generating resume:', err);
+        setActionError(err.message);
+      } finally {
+        setGeneratingJobs(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(job.id);
+          return newSet;
+        });
       }
-    } catch (err) {
-      console.error('Error generating resume:', err);
-      setActionError(err.message);
-    } finally {
-      // Remove job ID from generating set
-      setGeneratingJobs(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(job.id);
-        return newSet;
-      });
-    }
+    })();
   };
 
   const handleDownloadResume = async (job) => {
@@ -541,7 +567,7 @@ const Bids = () => {
                         const disableButton = noProfile || isGenerating || (reachedLimit && !isGenerating);
                         return (
                           <button
-                            onClick={() => handleGenerateResume(job)}
+                            onClick={() => openGenerateModal(job)}
                             disabled={disableButton}
                             title={
                               noProfile
@@ -573,17 +599,41 @@ const Bids = () => {
                       })()}
                     </td>
                     <td className="px-2 py-3 text-center">
-                      <button
-                        onClick={() => handleDownloadResume(job)}
-                        disabled={!job.profileId || !job.generatedResume}
-                        title={isAdmin() && !job.profileId ? 'Select a profile to download' : undefined}
-                        className={`px-2 py-1 text-xs font-medium rounded-md border whitespace-nowrap ${(job.profileId && job.generatedResume)
-                          ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-                          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                          }`}
-                      >
-                        Download
-                      </button>
+                      {(() => {
+                        const isGenerating = generatingJobs.has(job.id);
+                        const canDownload = job.profileId && job.generatedResume && !isGenerating;
+                        return (
+                          <button
+                            onClick={() => handleDownloadResume(job)}
+                            disabled={!canDownload && !isGenerating}
+                            title={
+                              isGenerating
+                                ? 'Generating…'
+                                : isAdmin() && !job.profileId
+                                  ? 'Select a profile to download'
+                                  : undefined
+                            }
+                            className={`px-2 py-1 text-xs font-medium rounded-md border whitespace-nowrap inline-flex items-center gap-1 ${canDownload
+                              ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                              : isGenerating
+                                ? 'bg-blue-100 text-blue-400 border-blue-200 cursor-not-allowed'
+                                : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                              }`}
+                          >
+                            {isGenerating ? (
+                              <>
+                                <svg className="animate-spin h-3.5 w-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span className="truncate">…</span>
+                              </>
+                            ) : (
+                              'Download'
+                            )}
+                          </button>
+                        );
+                      })()}
                     </td>
                     {isBider() && !isAdmin() && (
                       <>
@@ -647,6 +697,15 @@ const Bids = () => {
           <p className="text-sm text-red-600">{actionError}</p>
         </div>
       )}
+
+      {/* Generate Resume Modal */}
+      <GenerateResumeModal
+        isOpen={generateModalOpen}
+        job={selectedJobForGenerate}
+        onClose={closeGenerateModal}
+        onGenerate={handleGenerateResume}
+        onError={setActionError}
+      />
 
       {/* Apply Modal */}
       <ApplyBidModal
@@ -735,10 +794,6 @@ const Bids = () => {
                     <dd className={`mt-1 text-sm font-medium ${detailJob.isClearance ? 'text-amber-700' : 'text-gray-900'}`}>
                       {detailJob.isClearance ? 'Required' : 'Not required'}
                     </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Job description</dt>
-                    <dd className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{detailJob.jobDescription || '—'}</dd>
                   </div>
                 </dl>
               ) : null}

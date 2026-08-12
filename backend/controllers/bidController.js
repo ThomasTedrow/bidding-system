@@ -36,6 +36,7 @@ const formatJobForBids = (job, aiResume, bidStatus, profile) => ({
     profileName: profile?.profileName || null,
     profileId: profile?._id || null,
     generatedResume: aiResume?.GeneratedResume || null,
+    savedJobDescription: aiResume?.JobDescription || null,
     hasBidStatus: !!bidStatus,
     note: bidStatus?.Note || null,
     screenshots: normalizeScreenshots(bidStatus?.Screenshots),
@@ -62,6 +63,7 @@ const formatJobForAdmin = (job, bidStatus = null, options = {}) => ({
     profileName: bidStatus && bidStatus.profileId ? bidStatus.profileId.profileName : (options.profileName || null),
     profileId: options.profileId || null,
     generatedResume: options.generatedResume || null,
+    savedJobDescription: options.savedJobDescription || null,
     applied: !!bidStatus,
     appliedDate: bidStatus && bidStatus.AppliedDate ? new Date(bidStatus.AppliedDate).toISOString() : null,
     note: bidStatus ? (bidStatus.Note || null) : null,
@@ -204,7 +206,7 @@ const getBids = async (req, res) => {
                 const aiResumes = await AIResume.find({
                     jobId: { $in: jobIds },
                     profileId: profileTemplateId
-                }).select('jobId GeneratedResume').lean();
+                }).select('jobId GeneratedResume JobDescription').lean();
                 aiResumes.forEach(ar => aiResumeMap.set(ar.jobId.toString(), ar));
             }
 
@@ -234,6 +236,7 @@ const getBids = async (req, res) => {
                 if (profileTemplateId) {
                     options.profileId = profileTemplateId;
                     options.generatedResume = aiResume?.GeneratedResume || null;
+                    options.savedJobDescription = aiResume?.JobDescription || null;
                     options.profileName = profileName && profileName.trim() ? profileName.trim() : null;
                 }
                 return formatJobForAdmin(job, bidStatus, options);
@@ -464,13 +467,21 @@ const getProfilesForFilter = async (req, res) => {
  */
 const generateBidResume = async (req, res) => {
     try {
-        const { jobId, profileId } = req.body;
+        const { jobId, profileId, jobDescription: requestJobDescription } = req.body;
         const { userId, role } = req.user;
 
         if (!jobId || !profileId) {
             return res.status(400).json({
                 error: 'Missing required fields',
                 message: 'jobId and profileId are required'
+            });
+        }
+
+        const jobDescription = requestJobDescription ? String(requestJobDescription).trim() : '';
+        if (!jobDescription) {
+            return res.status(400).json({
+                error: 'Missing job description',
+                message: 'Job description is required to generate a resume'
             });
         }
 
@@ -555,14 +566,6 @@ const generateBidResume = async (req, res) => {
             });
         }
 
-        const jobDescription = job.JobDescription || '';
-        if (!jobDescription || jobDescription.trim().length === 0) {
-            return res.status(400).json({
-                error: 'Missing job description',
-                message: 'Job description is required to generate a resume'
-            });
-        }
-
         const jobTitle = job.JobTitle || '';
 
         // Generate resume with profile name and companies
@@ -584,10 +587,15 @@ const generateBidResume = async (req, res) => {
 
         // Save or update AIResume. Admin: update any existing (jobId+profileId) or create with admin as bidderId.
         let aiResume;
+        const aiResumeFields = {
+            GeneratedResume: relativePath,
+            JobDescription: jobDescription
+        };
+
         if (isAdmin) {
             aiResume = await AIResume.findOneAndUpdate(
                 { jobId: job._id, profileId: template._id },
-                { $set: { GeneratedResume: relativePath } },
+                { $set: aiResumeFields },
                 { new: true }
             );
             if (!aiResume) {
@@ -595,7 +603,7 @@ const generateBidResume = async (req, res) => {
                     jobId: job._id,
                     bidderId: userId,
                     profileId: template._id,
-                    GeneratedResume: relativePath
+                    ...aiResumeFields
                 });
             }
         } else {
@@ -605,7 +613,7 @@ const generateBidResume = async (req, res) => {
                     bidderId: userId,
                     profileId: template._id
                 },
-                { GeneratedResume: relativePath },
+                aiResumeFields,
                 { new: true, upsert: true }
             );
         }
@@ -615,7 +623,8 @@ const generateBidResume = async (req, res) => {
             message: 'Resume generated successfully',
             aiResume: {
                 id: aiResume._id,
-                generatedResume: aiResume.GeneratedResume
+                generatedResume: aiResume.GeneratedResume,
+                jobDescription: aiResume.JobDescription
             }
         });
 

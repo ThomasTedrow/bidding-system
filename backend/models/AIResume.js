@@ -20,6 +20,11 @@ const aiResumeSchema = new mongoose.Schema({
         type: String,
         default: null,
         trim: true
+    },
+    JobDescription: {
+        type: String,
+        default: null,
+        trim: true
     }
 }, {
     timestamps: true // Adds createdAt and updatedAt automatically

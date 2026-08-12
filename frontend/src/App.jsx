@@ -43,16 +43,16 @@ function App() {
                         </ProtectedRoute>
                       } 
                     />
-                    <Route 
-                      path="/resumes" 
+                    <Route
+                      path="/resumes"
                       element={
                         <ProtectedRoute allowedRoles={['admin']}>
                           <Resumes />
                         </ProtectedRoute>
-                      } 
+                      }
                     />
-                    <Route 
-                      path="/templates" 
+                    <Route
+                      path="/templates"
                       element={
                         <ProtectedRoute allowedRoles={['admin']}>
                           <Templates />
