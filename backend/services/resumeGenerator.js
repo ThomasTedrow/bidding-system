@@ -154,34 +154,53 @@ const DEFAULT_COMPANY_INFO = {
 };
 
 // Job title field names (standardized: firstJob is always most recent)
-const JOB_FIELD_NAMES = ['firstJob', 'secondJob', 'thirdJob', 'fourthJob'];
+const JOB_FIELD_NAMES = ['firstJob', 'secondJob', 'thirdJob', 'fourthJob', 'fifthJob', 'sixthJob'];
+const MAX_COMPANIES = 6;
 
 // Bullet count constraints per position (recent-heavy, tapering — see RESUME_QUALITY_PLAN.md Phase 2)
 const EXPERIENCE_BULLET_CONSTRAINTS = {
     'firstJob': { min: 10, max: 12, skillsMin: 12, skillsMax: 16 },
     'secondJob': { min: 7, max: 8, skillsMin: 8, skillsMax: 12 },
     'thirdJob': { min: 5, max: 6, skillsMin: 7, skillsMax: 10 },
-    'fourthJob': { min: 4, max: 5, skillsMin: 7, skillsMax: 10 }
+    'fourthJob': { min: 4, max: 5, skillsMin: 7, skillsMax: 10 },
+    'fifthJob': { min: 3, max: 4, skillsMin: 5, skillsMax: 8 },
+    'sixthJob': { min: 3, max: 4, skillsMin: 5, skillsMax: 8 }
 };
 
 // Seniority levels per bullet field based on company count
+// Pattern: first ceil(n/2) positions are Senior; older roles are Entry-level
 const EXPERIENCE_SENIORITY_LEVELS = {
     'firstJob': {
         2: 'Senior',
         3: 'Senior',
-        4: 'Senior'
+        4: 'Senior',
+        5: 'Senior',
+        6: 'Senior'
     },
     'secondJob': {
         2: 'Entry-level',
         3: 'Senior',
-        4: 'Senior'
+        4: 'Senior',
+        5: 'Senior',
+        6: 'Senior'
     },
     'thirdJob': {
         3: 'Entry-level',
-        4: 'Entry-level'
+        4: 'Entry-level',
+        5: 'Senior',
+        6: 'Senior'
     },
     'fourthJob': {
-        4: 'Entry-level'
+        4: 'Entry-level',
+        5: 'Entry-level',
+        6: 'Entry-level'
+    },
+    'fifthJob': {
+        5: 'Entry-level',
+        6: 'Entry-level'
+    },
+    'sixthJob': {
+        6: 'Entry-level'
     }
 };
 
@@ -227,7 +246,7 @@ function extractTemplateSignals(template) {
         const xml = new PizZip(data).file('word/document.xml').asText();
         const text = xml.replace(/<[^>]+>/g, '');
         const signals = [];
-        for (let i = 1; i <= 4; i++) {
+        for (let i = 1; i <= MAX_COMPANIES; i++) {
             const at = text.indexOf(`{#bullets${i}}`);
             if (at === -1) { signals.push(null); continue; }
             const prevEnd = i > 1 ? text.indexOf(`{/bullets${i - 1}}`) : -1;
@@ -584,7 +603,7 @@ function getSeniorityLevel(fieldName, numCompanies) {
 async function runResumeCompletion(jobDescription, candidateInfo, numCompanies, generatedResumeExtracted, research = [], internFlags = []) {
     // Build experience prompts - one shared prompt template for all positions
     const experiencePrompts = [];
-    const positionLabels = ['first', 'second', 'third', 'fourth'];
+    const positionLabels = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'];
 
     const totalYears = totalExperienceYears(candidateInfo.companies, internFlags);
     let wordTarget = 0;
@@ -984,10 +1003,10 @@ const generateResume = async (jobDescription, templatePath, profileName = null, 
         const templateBuffer = fs.readFileSync(templatePath); // read once; signals + export share it
         const templateSignals = extractTemplateSignals(templateBuffer);
 
-        // Ensure we have at least 2 companies, up to 4 — capped at the template's block count
+        // Ensure we have at least 2 companies, up to 6 — capped at the template's block count
         const numCompanies = renderableCompanyCount(
             templateSignals,
-            Math.min(Math.max(candidateInfo.companies.length, 2), 4)
+            Math.min(Math.max(candidateInfo.companies.length, 2), MAX_COMPANIES)
         );
         candidateInfo.companies = candidateInfo.companies.slice(0, numCompanies);
         candidateInfo.companies = candidateInfo.companies.map((c, i) =>
@@ -1010,7 +1029,7 @@ const generateResume = async (jobDescription, templatePath, profileName = null, 
             jdRelatedSkills: z.array(z.string()),
         };
 
-        // Add job title and bullet fields only for the companies we're generating (2–4)
+        // Add job title and bullet fields only for the companies we're generating (2–6)
         jobFieldNames.forEach(field => {
             schemaFields[`${field}Title`] = z.string();
             schemaFields[`${field}Bullets`] = getExperienceFieldSchema(field);
@@ -1177,7 +1196,7 @@ const exportResume = async (resume, template) => {
             skills: skillsForTemplate,
         };
 
-        // RENDER CONTRACT (frozen): {firstJob}..{fourthJob} title strings and {bullets1}..{bullets4}
+        // RENDER CONTRACT: {firstJob}..{sixthJob} title strings and {bullets1}..{bullets6}
         // segment arrays; keys for absent companies stay ABSENT, never empty.
         JOB_FIELD_NAMES.forEach((field, i) => {
             if (resume[field]) options[field] = resume[field];
